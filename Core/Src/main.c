@@ -39,13 +39,23 @@ int main(void)
   HAL_Init();
   /* Configure the system clock */
   SystemClock_Config();
+
+    /* Enable Power Clock */
+  __HAL_RCC_PWR_CLK_ENABLE();
+  
+  /* Ensure that MSI is wake-up system clock */ 
+  __HAL_RCC_WAKEUPSTOP_CLK_CONFIG(RCC_STOP_WAKEUPCLOCK_MSI);
+
+  /* Enable the debugging while in ULP mode. */
+  HAL_EnableDBGSleepMode();
+
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_LPTIM1_Init();
   MX_LPUART1_UART_Init();
   
   App_Init();
-  
+
   /* Init scheduler */
   vTaskStartScheduler();
 
