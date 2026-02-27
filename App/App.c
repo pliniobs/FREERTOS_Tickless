@@ -167,14 +167,17 @@ void vPortSuppressTicksAndSleep(TickType_t xExpectedIdleTime){
     sleepStatus = eTaskConfirmSleepModeStatus();
 
     if (sleepStatus == eAbortSleep){
+        HAL_LPTIM_TimeOut_Start_IT(&hlptim1, App_LPTIMER_MAX_PERIOD, App_LPTIMER_TICKS_PER_MS * App_LPTIMER_TICK_INTERVAL_MS);
         __enable_irq(); // Sleep aborted, re-enable interrupts and return
         return;
     }else if (sleepStatus == eNoTasksWaitingTimeout) {
         HAL_SuspendTick();
         /* Enter STOP1 */
         HAL_PWREx_EnterSTOP1Mode(PWR_STOPENTRY_WFI);
+        SystemClock_Config(); // Reconfigure system clock after waking up from STOP1 mode
         HAL_ResumeTick();
     }else{
+        HAL_SuspendTick();
 
         HAL_LPTIM_TimeOut_Stop_IT(&hlptim1); // Stop the timer to prevent it from firing during sleep preparations
 
@@ -188,10 +191,14 @@ void vPortSuppressTicksAndSleep(TickType_t xExpectedIdleTime){
         HAL_LPTIM_TimeOut_Start_IT(&hlptim1, App_LPTIMER_MAX_PERIOD, App_LPTIMER_TICKS_PER_MS * xExpectedIdleTime);
 
         HAL_PWREx_EnterSTOP1Mode(PWR_STOPENTRY_WFI); // Enter STOP1 mode, will wake on LPTIM interrupt or any other enabled interrupt
-
+        
+        SystemClock_Config(); // Reconfigure system clock after waking up from STOP1 mode
+        
+        //HAL_LPTIM_TimeOut_Stop_IT(&hlptim1); // Stop the timer to prevent it from firing during sleep preparations
+        
         __enable_irq();
 
-        HAL_LPTIM_TimeOut_Stop_IT(&hlptim1); // 
+        //HAL_LPTIM_TimeOut_Stop_IT(&hlptim1); // 
 
         if (ucTickFlag != pdFALSE) {
             /* The tick interrupt is already pending, but the tick count has not yet been incremented. */
@@ -205,7 +212,7 @@ void vPortSuppressTicksAndSleep(TickType_t xExpectedIdleTime){
                passed, which is the value of xExpectedIdleTime. */
 
             /* Calculate the number of complete tick periods that elapsed while sleeping. */
-            lptimCounts = HAL_LPTIM_ReadCounter(&hlptim1);
+            lptimCounts = xExpectedIdleTime;//hlptim1.Instance->CNT; //HAL_LPTIM_ReadCounter(&hlptim1);
 
             ulCompleteTickPeriods = (lptimCounts / App_LPTIMER_TICKS_PER_MS);
 
